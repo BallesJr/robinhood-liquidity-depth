@@ -1,0 +1,3 @@
+# Installs the package and its dependencies from pyproject.toml
+# (kept so hosts that look for requirements.txt, e.g. Render, work as-is).
+.

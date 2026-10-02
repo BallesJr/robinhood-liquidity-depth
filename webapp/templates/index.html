@@ -1,0 +1,636 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% if result %}{{ result.token.symbol }} · {% endif %}Liquidity Depth</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --page: #f9f9f7;
+      --surface: #fcfcfb;
+      --surface-2: #f2f1ed;
+      --ink: #0b0b0b;
+      --ink-2: #52514e;
+      --muted: #6f6e69;
+      --border: rgba(11, 11, 11, 0.10);
+      --border-strong: rgba(11, 11, 11, 0.18);
+      --accent: #2a78d6;
+      --accent-ink: #ffffff;
+      --accent-soft: rgba(42, 120, 214, 0.10);
+      --buy: #1baf7a;
+      --sell: #eb6834;
+      --good-ink: #006300;
+      --warn-bg: #fff6dc;
+      --warn-ink: #6b4e00;
+      --error-bg: #fdeceb;
+      --error-ink: #8c1d18;
+      --shadow: 0 1px 2px rgba(11, 11, 11, 0.04);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root:where(:not([data-theme="light"])) {
+        color-scheme: dark;
+        --page: #0d0d0d;
+        --surface: #1a1a19;
+        --surface-2: #232321;
+        --ink: #ffffff;
+        --ink-2: #c3c2b7;
+        --muted: #9a9890;
+        --border: rgba(255, 255, 255, 0.10);
+        --border-strong: rgba(255, 255, 255, 0.18);
+        --accent: #3987e5;
+        --accent-soft: rgba(57, 135, 229, 0.16);
+        --buy: #199e70;
+        --sell: #d95926;
+        --good-ink: #0ca30c;
+        --warn-bg: #2e2510;
+        --warn-ink: #f0cf7a;
+        --error-bg: #3a1614;
+        --error-ink: #f4b4ae;
+        --shadow: none;
+      }
+    }
+    :root[data-theme="dark"] {
+      color-scheme: dark;
+      --page: #0d0d0d;
+      --surface: #1a1a19;
+      --surface-2: #232321;
+      --ink: #ffffff;
+      --ink-2: #c3c2b7;
+      --muted: #9a9890;
+      --border: rgba(255, 255, 255, 0.10);
+      --border-strong: rgba(255, 255, 255, 0.18);
+      --accent: #3987e5;
+      --accent-soft: rgba(57, 135, 229, 0.16);
+      --buy: #199e70;
+      --sell: #d95926;
+      --good-ink: #0ca30c;
+      --warn-bg: #2e2510;
+      --warn-ink: #f0cf7a;
+      --error-bg: #3a1614;
+      --error-ink: #f4b4ae;
+      --shadow: none;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--page);
+      color: var(--ink);
+      font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: var(--accent); }
+    .wrap { max-width: 1120px; margin: 0 auto; padding: 32px 16px 64px; }
+    .mono { font-family: ui-monospace, "Cascadia Code", Menlo, Consolas, monospace; }
+    .num { font-variant-numeric: tabular-nums; }
+
+    header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 24px; }
+    h1 { font-size: 22px; line-height: 1.25; margin: 0 0 4px; letter-spacing: -0.01em; }
+    .lede { color: var(--ink-2); margin: 0; max-width: 62ch; }
+    .theme-btn {
+      flex: none; width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--border-strong);
+      background: var(--surface); color: var(--ink-2); cursor: pointer; font-size: 16px;
+    }
+
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow); }
+
+    /* --- Search form ---------------------------------------------------- */
+    form.search { padding: 20px; display: grid; gap: 16px; margin-bottom: 24px; }
+    .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
+    .field { display: grid; gap: 6px; }
+    .field.grow { flex: 1 1 320px; }
+    label, .label { font-size: 13px; font-weight: 600; color: var(--ink-2); }
+    input[type=text], input[type=number] {
+      width: 100%; height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--border-strong);
+      background: var(--page); color: var(--ink); font: inherit;
+    }
+    input[type=text] { font-family: ui-monospace, "Cascadia Code", Menlo, Consolas, monospace; font-size: 14px; }
+    input:focus-visible, button:focus-visible, summary:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    input:invalid:not(:placeholder-shown) { border-color: var(--sell); }
+    .input-suffix { position: relative; width: 120px; }
+    .input-suffix input { padding-right: 28px; }
+    .input-suffix span { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
+    .btn {
+      height: 40px; padding: 0 20px; border-radius: 8px; border: none; cursor: pointer;
+      background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 600;
+    }
+    .btn:disabled { opacity: 0.6; cursor: progress; }
+    .btn.ghost { background: transparent; color: var(--ink-2); border: 1px solid var(--border-strong); font-weight: 500; height: 32px; padding: 0 12px; font-size: 13px; }
+    .chips { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; font-size: 13px; color: var(--muted); }
+    .chip {
+      display: inline-flex; gap: 6px; align-items: center; height: 28px; padding: 0 10px; border-radius: 999px;
+      border: 1px solid var(--border-strong); background: var(--surface); color: var(--ink); font: inherit; font-size: 13px; cursor: pointer;
+    }
+    .chip:hover { background: var(--accent-soft); }
+    .chip .sub { color: var(--muted); }
+    .chip.on { background: var(--accent-soft); border-color: var(--accent); }
+    details.advanced summary { cursor: pointer; font-size: 13px; color: var(--ink-2); width: max-content; }
+    details.advanced .row { margin-top: 12px; }
+    .hint { font-size: 12px; color: var(--muted); margin: 0; }
+
+    /* --- Status banners ------------------------------------------------- */
+    .banner { padding: 12px 16px; border-radius: 10px; margin-bottom: 24px; }
+    .banner.error { background: var(--error-bg); color: var(--error-ink); }
+    .banner.warn { background: var(--warn-bg); color: var(--warn-ink); }
+
+    .progress { padding: 20px; margin-bottom: 24px; }
+    .progress-head { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; margin-bottom: 12px; }
+    .progress-head .muted { color: var(--muted); }
+    .bar { height: 6px; background: var(--surface-2); border-radius: 999px; overflow: hidden; }
+    .bar > div { height: 100%; width: 0; background: var(--accent); border-radius: 999px; transition: width 0.4s ease; }
+    .steps { list-style: none; padding: 0; margin: 14px 0 0; display: grid; gap: 4px; font-size: 13px; color: var(--muted); }
+    .steps li::before { content: "○"; display: inline-block; width: 20px; }
+    .steps li.done { color: var(--ink-2); }
+    .steps li.done::before { content: "✓"; color: var(--good-ink); }
+    .steps li.active { color: var(--ink); font-weight: 600; }
+    .steps li.active::before { content: "●"; color: var(--accent); }
+
+    /* --- Results -------------------------------------------------------- */
+    .result-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+    .token-title { font-size: 20px; font-weight: 700; margin: 0; }
+    .token-title .name { color: var(--ink-2); font-weight: 500; }
+    .token-meta { display: flex; gap: 10px; align-items: center; font-size: 13px; color: var(--muted); flex-wrap: wrap; }
+    .copy { border: none; background: none; color: var(--accent); cursor: pointer; font: inherit; padding: 0; }
+
+    .stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
+    .stat { padding: 16px; }
+    .stat .label { display: flex; align-items: center; gap: 6px; font-weight: 500; color: var(--ink-2); }
+    .stat .value { font-size: 24px; font-weight: 700; margin-top: 4px; letter-spacing: -0.01em; }
+    .stat .sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .stat .sub.flag { color: var(--error-ink); font-weight: 600; }
+    .dot { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+    .dot.buy { background: var(--buy); }
+    .dot.sell { background: var(--sell); }
+    .split { display: flex; gap: 2px; height: 6px; margin-top: 10px; border-radius: 999px; overflow: hidden; }
+    .split .buy { background: var(--buy); }
+    .split .sell { background: var(--sell); }
+
+    .chart { padding: 12px 8px 4px; margin-bottom: 24px; min-height: 540px; }
+    .chart-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 4px 8px 0; }
+    .seg { display: inline-flex; border: 1px solid var(--border-strong); border-radius: 8px; overflow: hidden; }
+    .seg button { border: none; background: var(--surface); color: var(--ink-2); font: inherit; font-size: 13px; padding: 6px 12px; cursor: pointer; }
+    .seg button + button { border-left: 1px solid var(--border-strong); }
+    .seg button[aria-pressed="true"] { background: var(--accent-soft); color: var(--ink); font-weight: 600; }
+    .chart-head .hint { margin: 0; }
+    .levels { display: flex; flex-wrap: wrap; gap: 6px 14px; padding: 8px 8px 0; font-size: 13px; color: var(--ink-2); }
+    .levels .lvl { white-space: nowrap; }
+    .levels .up { color: var(--ink); font-weight: 600; }
+    h2 { font-size: 16px; margin: 0 0 4px; }
+    .section-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th, td { padding: 10px 16px; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--border); }
+    th:first-child, td:first-child, th.l, td.l { text-align: left; }
+    thead th { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover { background: var(--surface-2); }
+    tr.dust { display: none; }
+    table.show-dust tr.dust { display: table-row; }
+    tr.unpriced { display: none; }
+    table.show-unpriced tr.unpriced { display: table-row; }
+    tr.unpriced-summary td { text-align: left; white-space: normal; color: var(--ink-2); }
+    tr.unpriced-summary:hover { background: none; }
+    .linkish { background: none; border: none; padding: 0; font: inherit; color: var(--accent); cursor: pointer; }
+    .pill { font-size: 11px; font-weight: 600; padding: 2px 6px; border-radius: 4px; background: var(--surface-2); color: var(--ink-2); }
+    .muted { color: var(--muted); }
+    abbr { text-decoration: underline dotted; cursor: help; }
+
+    .explain { margin-top: 24px; padding: 16px 20px; font-size: 14px; color: var(--ink-2); }
+    .explain summary { cursor: pointer; font-weight: 600; color: var(--ink); }
+    .explain p { margin: 10px 0 0; max-width: 75ch; }
+    .empty { padding: 32px 20px; text-align: center; color: var(--ink-2); }
+
+    @media (max-width: 760px) {
+      .wrap { padding-top: 20px; }
+      .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .stat .value { font-size: 20px; }
+      .chart { min-height: 440px; }
+      th, td { padding: 8px 12px; }
+    }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Liquidity Depth · Robinhood Chain</h1>
+      <p class="lede">Where a token's liquidity sits across every Uniswap V3 and V4 pool, and whether there's more below the current price (buyside) or above it (sellside).</p>
+    </div>
+    <button class="theme-btn" id="theme-btn" type="button" aria-label="Toggle dark mode" title="Toggle dark mode">◐</button>
+  </header>
+
+  <form class="search card" id="search-form" method="get" action="/">
+    <div class="row">
+      <div class="field grow">
+        <label for="token">Token address</label>
+        <input type="text" id="token" name="token" value="{{ token }}" placeholder="0x…" autocomplete="off" spellcheck="false"
+               pattern="^0x[0-9a-fA-F]{40}$" title="0x followed by 40 hex characters">
+      </div>
+      <div class="field">
+        <label for="window">Price range (±)</label>
+        <div class="input-suffix">
+          <input type="number" id="window" name="window" value="{{ window }}" step="any" min="1" max="500">
+          <span>%</span>
+        </div>
+      </div>
+      <button class="btn" type="submit" id="submit-btn">Analyze</button>
+    </div>
+    <div class="chips" id="window-presets" aria-label="Price range presets">
+      Range:
+      {% for p in [10, 25, 50, 100] %}<button type="button" class="chip" data-window="{{ p }}">±{{ p }}%</button>{% endfor %}
+    </div>
+    <div class="chips" id="examples">
+      Try:
+      {% for ex in examples %}
+        <button type="button" class="chip" data-token="{{ ex.address }}">{{ ex.symbol }} <span class="sub">{{ ex.name }}</span></button>
+      {% endfor %}
+      <span id="recent"></span>
+    </div>
+    <details class="advanced" {% if bins is not none %}open{% endif %}>
+      <summary>Advanced</summary>
+      <div class="row">
+        <div class="field">
+          <label for="bins">Chart resolution (bars)</label>
+          <input type="number" id="bins" name="bins" value="{{ bins if bins is not none else '' }}" placeholder="Auto" step="10" min="20" max="1000" style="width:120px">
+        </div>
+        <p class="hint">Leave empty to pick it automatically from how fine the token's liquidity is{% if result and bins is none %} (this chart: {{ result.bins | length }} bars){% endif %}. Only changes how the chart is drawn: buyside, sellside and imbalance don't depend on it.</p>
+      </div>
+    </details>
+  </form>
+
+  <div class="banner error" id="error" role="alert" {% if not error %}hidden{% endif %}>{{ error or "" }}</div>
+
+  <div class="progress card" id="progress" hidden aria-live="polite">
+    <div class="progress-head">
+      <span id="progress-label">Starting…</span>
+      <span class="muted num" id="progress-time">0s</span>
+    </div>
+    <div class="bar"><div id="progress-bar"></div></div>
+    <ol class="steps" id="progress-steps"></ol>
+    <p class="hint" style="margin-top:12px">Usually takes 10–20 seconds. Everything is read live from the chain.</p>
+  </div>
+
+  {% if result %}
+  <section id="results">
+    {% set pc = result.price_check %}
+    {% if pc and pc.available and pc.diverged %}
+      <div class="banner warn">
+        <strong>Price check failed.</strong> The computed price (${{ "%.6g"|format(result.current_price_usd) }}) differs from
+        {{ pc.source }} (${{ "%.6g"|format(pc.external_price_usd) }}) by {{ "%.1f"|format(pc.diff_pct) }}%, above the
+        {{ "%.0f"|format(price_check_threshold) }}% threshold. A quote-token price may be stale or a thin pool may be
+        skewing the result. Check the pool table before trusting the chart.
+      </div>
+    {% endif %}
+
+    <div class="result-head">
+      <div>
+        <p class="token-title">{{ result.token.symbol }} <span class="name">{{ result.token.name }}</span></p>
+        <div class="token-meta">
+          <span class="mono">{{ result.token.address[:6] }}…{{ result.token.address[-4:] }}</span>
+          <button class="copy" type="button" data-copy="{{ result.token.address }}">Copy</button>
+          <a href="{{ explorer_url }}/token/{{ result.token.address }}" target="_blank" rel="noopener">Explorer ↗</a>
+        </div>
+      </div>
+      <div class="token-meta">
+        <span>Updated {{ last_updated }}{% if cache_age_seconds > 5 %} · {{ cache_age_seconds }}s ago{% endif %}</span>
+        <button class="btn ghost" type="button" id="refresh-btn">Refresh</button>
+      </div>
+    </div>
+
+    {% set total = result.buyside_usd + result.sellside_usd %}
+    {% set buy_pct = (result.buyside_usd / total * 100) if total > 0 else 50 %}
+    <div class="stats">
+      <div class="stat card">
+        <div class="label">Price</div>
+        <div class="value num">${{ "%.6g"|format(result.current_price_usd) }}</div>
+        {% if pc and pc.available %}
+          <div class="sub num {{ 'flag' if pc.diverged else '' }}">{{ pc.source }} ${{ "%.4g"|format(pc.external_price_usd) }} ({{ "%.1f"|format(pc.diff_pct) }}% diff)</div>
+        {% else %}
+          <div class="sub">No external price to compare</div>
+        {% endif %}
+      </div>
+      <div class="stat card">
+        <div class="label"><span class="dot buy"></span>Buyside</div>
+        <div class="value num">${{ "{:,.0f}".format(result.buyside_usd) }}</div>
+        <div class="sub">Liquidity below the price</div>
+      </div>
+      <div class="stat card">
+        <div class="label"><span class="dot sell"></span>Sellside</div>
+        <div class="value num">${{ "{:,.0f}".format(result.sellside_usd) }}</div>
+        <div class="sub">Liquidity above the price</div>
+      </div>
+      <div class="stat card">
+        <div class="label">Imbalance</div>
+        <div class="value num">{{ '+' if result.imbalance_usd >= 0 else '−' }}${{ "{:,.0f}".format(result.imbalance_usd|abs) }}</div>
+        <div class="sub">{{ "%.0f"|format(buy_pct) }}% buyside</div>
+        <div class="split" role="img" aria-label="{{ '%.0f'|format(buy_pct) }}% buyside, {{ '%.0f'|format(100 - buy_pct) }}% sellside">
+          <div class="buy" style="width: {{ buy_pct }}%"></div><div class="sell" style="flex: 1"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="chart card">
+      <div class="chart-head">
+        <div class="seg" role="group" aria-label="Chart view">
+          <button type="button" data-view="total" aria-pressed="true">Total</button>
+          <button type="button" data-view="pool" aria-pressed="false">By pool</button>
+          <button type="button" data-view="cumulative" aria-pressed="false">Cumulative</button>
+        </div>
+        <p class="hint" id="view-hint"></p>
+      </div>
+      <div class="levels">
+        {% if levels %}
+          <span class="muted">Key levels:</span>
+          {% for st in levels %}
+            <span class="lvl {{ 'up' if st.change > 0 }}" title="Liquidity {{ 'grows' if st.change > 0 else 'drops' }} by {{ '%.0f' | format((st.change * 100) | abs) }}% past ${{ '%.6g' | format(st.price) }}, moving away from the current price">${{ '%.6g' | format(st.price) }} · {{ st.label }}</span>
+          {% endfor %}
+        {% else %}
+          <span class="muted">No sharp liquidity steps near the price: liquidity changes gradually.</span>
+        {% endif %}
+      </div>
+      {{ chart_html | safe }}
+    </div>
+
+    {% set dust_count = pool_rows | selectattr("dust") | list | length %}
+    <div class="section-head">
+      <div>
+        <h2>Pools</h2>
+        <p class="hint">{{ pool_rows | length }} pools found, sorted by liquidity inside the price range.</p>
+      </div>
+      {% if dust_count %}
+        <button class="btn ghost" type="button" id="dust-btn" data-count="{{ dust_count }}">Show {{ dust_count }} pools under $1</button>
+      {% endif %}
+    </div>
+    <div class="card table-wrap">
+      <table id="pools">
+        <thead>
+          <tr>
+            <th>Pair</th>
+            <th class="l">Version</th>
+            <th>Fee</th>
+            <th class="l">Pool</th>
+            <th><abbr title="V3 only: the pool's actual token balances. V4 pools share their reserves inside one PoolManager contract, so there is no per-pool balance to read.">TVL</abbr></th>
+            <th>Liquidity in range</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% set unpriced = pool_rows | rejectattr("priceable") | list %}
+          {% for r in pool_rows %}
+          {% if loop.index0 == pool_rows | length - unpriced | length %}
+          {% set quote_symbols = unpriced | map(attribute="quote_symbol") | unique | list %}
+          <tr class="unpriced-summary">
+            <td colspan="6">
+              {{ unpriced | length }} pool{{ "s" if unpriced | length != 1 }} paired with tokens that have no USD price
+              ({{ quote_symbols[:4] | join(", ") }}{% if quote_symbols | length > 4 %} +{{ quote_symbols | length - 4 }} more{% endif %}),
+              so not included in the chart.
+              <button class="linkish" type="button" id="unpriced-btn" data-count="{{ unpriced | length }}" aria-expanded="false">Show</button>
+            </td>
+          </tr>
+          {% endif %}
+          <tr class="{{ 'dust' if r.dust else '' }}{{ 'unpriced' if not r.priceable else '' }}">
+            <td>{{ r.pair }}</td>
+            <td class="l"><span class="pill">{{ r.version }}</span></td>
+            <td class="num">{{ r.fee }}</td>
+            <td class="l">
+              {% if r.explorer_url %}
+                <a class="mono" href="{{ r.explorer_url }}" target="_blank" rel="noopener" title="{{ r.key }}">{{ r.key_short }}</a>
+              {% else %}
+                <span class="mono" title="{{ r.key }}">{{ r.key_short }}</span>
+              {% endif %}
+              <button class="copy" type="button" data-copy="{{ r.key }}" aria-label="Copy pool id">Copy</button>
+            </td>
+            <td class="num">{% if r.tvl is not none %}${{ "{:,.0f}".format(r.tvl) }}{% else %}<span class="muted">—</span>{% endif %}</td>
+            <td class="num">{% if r.priceable %}${{ "{:,.0f}".format(r.liquidity) }}{% else %}<span class="muted" title="{{ r.skip_reason }}">No USD price</span>{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  {% elif not error %}
+    <div class="card empty" id="empty">Paste a token address, or pick an example above, and click <strong>Analyze</strong>.</div>
+  {% endif %}
+
+  <details class="explain card">
+    <summary>How to read this</summary>
+    <p><strong>Buyside</strong> is the USD value of Uniswap liquidity sitting below the current price, which is what a seller would trade into. <strong>Sellside</strong> is the liquidity above it, which is what a buyer would trade into. <strong>Imbalance</strong> is buyside minus sellside.</p>
+    <p>This is concentrated AMM liquidity, not a limit-order book, and it doesn't predict where the price will go. Pools quoted in tokens without a USD price feed are listed but left out of the chart. V4 pools with hooks are treated as standard pools.</p>
+    <p>Not financial advice. On-chain data and external price feeds can be wrong or stale.</p>
+  </details>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  const STEPS = {{ steps | tojson }};
+  const $ = (id) => document.getElementById(id);
+  const form = $("search-form");
+  const tokenInput = $("token");
+  const windowInput = $("window");
+
+  // ---- Theme ---------------------------------------------------------
+  const store = {
+    get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+    set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} },
+  };
+  const media = window.matchMedia("(prefers-color-scheme: dark)");
+  function isDark() {
+    const t = document.documentElement.dataset.theme;
+    return t ? t === "dark" : media.matches;
+  }
+  function themeChart() {
+    const gd = document.querySelector(".plotly-graph-div");
+    if (!gd || !window.Plotly || !gd.data) return;
+    const dark = isDark();
+    const ink = dark ? "#c3c2b7" : "#52514e";
+    const line = dark ? "#ffffff" : "#0b0b0b";
+    gd.data.forEach((t, i) => {
+      if (!t.meta) return;
+      const c = dark ? t.meta.dark : t.meta.light;
+      if (t.type === "scatter") {
+        Plotly.restyle(gd, { "line.color": c, fillcolor: dark ? t.meta.fill_dark : t.meta.fill_light }, [i]);
+      } else {
+        Plotly.restyle(gd, { "marker.color": [c] }, [i]);
+      }
+    });
+    Plotly.relayout(gd, {
+      "font.color": ink,
+      "yaxis.gridcolor": dark ? "#2c2c2a" : "#e1e0d9",
+      "xaxis.linecolor": dark ? "#383835" : "#c3c2b7",
+      "shapes[0].line.color": line,
+      "annotations[0].font.color": line,
+      // Label backgrounds (current price + liquidity levels) follow the page.
+      ...Object.fromEntries((gd.layout.annotations || []).map((_, i) => [`annotations[${i}].bgcolor`, dark ? "rgba(26,26,25,0.85)" : "rgba(252,252,251,0.85)"])),
+    });
+  }
+  const savedTheme = store.get("theme");
+  if (savedTheme) document.documentElement.dataset.theme = savedTheme;
+  $("theme-btn").addEventListener("click", () => {
+    const next = isDark() ? "light" : "dark";
+    document.documentElement.dataset.theme = next;
+    store.set("theme", next);
+    themeChart();
+  });
+  media.addEventListener("change", themeChart);
+  window.addEventListener("load", themeChart);
+
+  // ---- Chart views (traces are tagged with meta.view server-side) -----
+  const VIEWS = {
+    total: { title: "Liquidity per bar (USD)", hint: "Green is below the price (support), orange above (resistance). Look for steps: that's where liquidity starts or ends." },
+    pool: { title: "Liquidity per bar (USD)", hint: "Same bars, split by pool." },
+    cumulative: { title: "Cumulative liquidity from current price (USD)", hint: "How much liquidity the price has to eat through to reach each level. The steeper the curve, the stronger the support or resistance there." },
+  };
+  function setView(view) {
+    const gd = document.querySelector(".plotly-graph-div");
+    if (!VIEWS[view]) view = "total";
+    document.querySelectorAll(".seg button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.view === view)));
+    $("view-hint").textContent = VIEWS[view].hint;
+    if (!gd || !window.Plotly || !gd.data) return;
+    Plotly.restyle(gd, { visible: gd.data.map((t) => !!t.meta && t.meta.view === view) });
+    Plotly.relayout(gd, { "yaxis.title.text": VIEWS[view].title });
+  }
+  document.querySelectorAll(".seg button").forEach((b) => b.addEventListener("click", () => {
+    store.set("chartView", b.dataset.view);
+    setView(b.dataset.view);
+  }));
+  window.addEventListener("load", () => setView(new URLSearchParams(location.search).get("view") || store.get("chartView") || "total"));
+
+  // ---- Form helpers --------------------------------------------------
+  function markPreset() {
+    document.querySelectorAll("#window-presets .chip").forEach((c) => {
+      c.classList.toggle("on", Number(c.dataset.window) === Number(windowInput.value));
+    });
+  }
+  document.querySelectorAll("#window-presets .chip").forEach((c) => c.addEventListener("click", () => {
+    windowInput.value = c.dataset.window;
+    markPreset();
+  }));
+  windowInput.addEventListener("input", markPreset);
+  markPreset();
+
+  function bindExample(chip) {
+    chip.addEventListener("click", () => {
+      tokenInput.value = chip.dataset.token;
+      form.requestSubmit();
+    });
+  }
+  document.querySelectorAll("#examples .chip").forEach(bindExample);
+
+  // Recently analyzed tokens (this browser only).
+  function recentList() {
+    try { return JSON.parse(store.get("recent") || "[]"); } catch (e) { return []; }
+  }
+  const examples = new Set([...document.querySelectorAll("#examples .chip")].map((c) => c.dataset.token.toLowerCase()));
+  recentList().filter((r) => !examples.has(r.address.toLowerCase())).slice(0, 4).forEach((r) => {
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = "chip";
+    chip.dataset.token = r.address;
+    chip.textContent = r.symbol;
+    chip.title = r.address;
+    $("recent").before(chip);
+    bindExample(chip);
+  });
+  {% if result %}
+  (function rememberToken() {
+    const entry = { symbol: {{ result.token.symbol | tojson }}, address: {{ result.token.address | tojson }} };
+    const list = recentList().filter((r) => r.address.toLowerCase() !== entry.address.toLowerCase());
+    list.unshift(entry);
+    store.set("recent", JSON.stringify(list.slice(0, 6)));
+  })();
+  {% endif %}
+
+  document.querySelectorAll("[data-copy]").forEach((b) => b.addEventListener("click", () => {
+    navigator.clipboard.writeText(b.dataset.copy).then(() => {
+      const old = b.textContent;
+      b.textContent = "Copied";
+      setTimeout(() => { b.textContent = old; }, 1200);
+    });
+  }));
+
+  const unpricedBtn = $("unpriced-btn");
+  if (unpricedBtn) unpricedBtn.addEventListener("click", () => {
+    const shown = $("pools").classList.toggle("show-unpriced");
+    unpricedBtn.textContent = shown ? "Hide" : "Show";
+    unpricedBtn.setAttribute("aria-expanded", String(shown));
+  });
+
+  const dustBtn = $("dust-btn");
+  if (dustBtn) dustBtn.addEventListener("click", () => {
+    const shown = $("pools").classList.toggle("show-dust");
+    dustBtn.textContent = shown ? "Hide pools under $1" : `Show ${dustBtn.dataset.count} pools under $1`;
+  });
+
+  // ---- Background analysis with progress -----------------------------
+  const progress = $("progress");
+  const errorBox = $("error");
+  let timer = null;
+
+  function showError(msg) {
+    progress.hidden = true;
+    errorBox.textContent = msg;
+    errorBox.hidden = false;
+    $("submit-btn").disabled = false;
+    clearInterval(timer);
+  }
+
+  function renderProgress(step, label, elapsed) {
+    $("progress-label").textContent = label + "…";
+    $("progress-time").textContent = Math.round(elapsed) + "s";
+    $("progress-bar").style.width = Math.max(4, ((step - 1) / STEPS.length) * 100) + "%";
+    $("progress-steps").innerHTML = STEPS.map((s, i) =>
+      `<li class="${i + 1 < step ? "done" : i + 1 === step ? "active" : ""}">${s}</li>`).join("");
+  }
+
+  async function start(refresh) {
+    errorBox.hidden = true;
+    const data = new URLSearchParams(new FormData(form));
+    if (!data.get("token")) data.set("token", {{ examples[0].address | tojson }});
+    let res;
+    try {
+      res = await fetch("/api/analyze" + (refresh ? "?refresh=1" : ""), { method: "POST", body: data });
+    } catch (e) {
+      return showError("Couldn't reach the server. Is it still running?");
+    }
+    const body = await res.json();
+    if (!res.ok) return showError(body.error || "Something went wrong.");
+    if (body.status === "done") { window.location = body.url; return; }
+
+    $("submit-btn").disabled = true;
+    ["results", "empty"].forEach((id) => { const el = $(id); if (el) el.hidden = true; });
+    progress.hidden = false;
+    const t0 = Date.now();
+    renderProgress(1, "Starting", 0);
+    timer = setInterval(async () => {
+      try {
+        const r = await fetch("/api/jobs/" + body.job_id);
+        const job = await r.json();
+        if (!r.ok) return showError(job.error);
+        if (job.status === "done") {
+          clearInterval(timer);
+          renderProgress(STEPS.length + 1, "Done", job.elapsed);
+          window.location = body.url;
+        } else if (job.status === "error") {
+          showError(job.error);
+        } else {
+          renderProgress(Math.max(job.step, 1), job.label, job.elapsed);
+        }
+      } catch (e) {
+        $("progress-time").textContent = Math.round((Date.now() - t0) / 1000) + "s";
+      }
+    }, 1000);
+  }
+
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    if (!form.reportValidity()) return;
+    start(false);
+  });
+  const refreshBtn = $("refresh-btn");
+  if (refreshBtn) refreshBtn.addEventListener("click", () => start(true));
+})();
+</script>
+</body>
+</html>

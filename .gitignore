@@ -1,0 +1,24 @@
+# Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+
+# Local config / runtime data
+.env
+.cache/
+.claude/
+
+# CLI output (default --output path)
+/liquidity_depth.png
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
