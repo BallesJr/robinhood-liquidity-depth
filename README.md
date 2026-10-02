@@ -24,8 +24,8 @@ more of it below the current price (buyside) or above it (sellside).
 Requires Python 3.10+.
 
 ```bash
-git clone <this-repo-url>
-cd liquidity-depth
+git clone https://github.com/BallesJr/robinhood-liquidity-depth.git
+cd robinhood-liquidity-depth
 python -m venv .venv
 .venv\Scripts\activate          # Windows
 # source .venv/bin/activate     # macOS / Linux
